@@ -20,3 +20,9 @@ op basis van een kenteken.
     { "...": "..." }
   ]
 }
+```
+## Installatie
+
+- git clone https://github.com/ilkerceto/rdw-api.git
+cd rdw-kenteken-api
+npm install
