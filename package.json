@@ -1,5 +1,6 @@
 {
   "name": "rdw-kenteken-api",
+  "author": "Ilker Cetokoluk",
   "version": "1.0.0-beta",
   "description": "Eenvoudige Node.js API die RDW Open Data gebruikt om voertuig- en brandstofgegevens op te halen op basis van een kenteken.",
   "main": "src/server.js",
