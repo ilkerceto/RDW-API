@@ -24,5 +24,10 @@ op basis van een kenteken.
 ## Installatie
 
 - git clone https://github.com/ilkerceto/rdw-api.git
-cd rdw-kenteken-api
-npm install
+- cd rdw-kenteken-api
+- npm install
+- Maak vervolgens een **.env** bestand op basis van **.env.example** --> cp .env.example .env
+- Bewerk het **.env** bestand (indien nodig):
+- PORT=3000
+- RDW_APP_TOKEN=JOUW_RDW_APP_TOKEN_HIER
+
