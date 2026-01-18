@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <title>RDW Kentekencheck</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 40px auto;
+      background: #ffffff;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 1.6rem;
+    }
+
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    label {
+      font-weight: 600;
+    }
+
+    input[type="text"] {
+      flex: 1 1 180px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      font-size: 1rem;
+    }
+
+    button {
+      padding: 10px 18px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.95rem;
+      background: #2563eb;
+      color: white;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    #message {
+      margin: 8px 0 16px;
+      font-size: 0.95rem;
+      color: #374151;
+    }
+
+    section {
+      margin-top: 24px;
+    }
+
+    section h2 {
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 6px 8px;
+      vertical-align: top;
+    }
+
+    th {
+      width: 40%;
+      background-color: #f9fafb;
+      font-weight: 600;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    td {
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .error {
+      color: #b91c1c;
+    }
+
+    .info {
+      color: #2563eb;
+    }
+
+    .muted {
+      color: #6b7280;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>RDW kentekencheck</h1>
+    <p class="muted">
+      Vul een Nederlands kenteken in (met of zonder streepjes/spaties). De gegevens worden live opgehaald uit de
+      RDW Open Data API.
+    </p>
+
+    <form id="plate-form">
+      <label for="plate">Kenteken:</label>
+      <input
+        id="plate"
+        name="plate"
+        type="text"
+        placeholder="bijv. 1-ABC-23"
+        autocomplete="off"
+        required
+      />
+      <button type="submit">Zoek voertuig</button>
+    </form>
+
+    <div id="message"></div>
+    <div id="results"></div>
+
+    <p class="muted">
+      Data­bron: RDW Open Data (&quot;Gekentekende_voertuigen&quot; en &quot;Gekentekende_voertuigen_brandstof&quot;).
+    </p>
+  </div>
+
+  <script>
+    const form = document.getElementById('plate-form');
+    const messageDiv = document.getElementById('message');
+    const resultsDiv = document.getElementById('results');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      messageDiv.textContent = '';
+      messageDiv.className = '';
+      resultsDiv.innerHTML = '';
+
+      const rawPlate = document.getElementById('plate').value;
+
+      // Strip alles wat geen letter/cijfer is en maak uppercase
+      const plate = rawPlate.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
+      if (!plate) {
+        messageDiv.textContent = 'Vul een geldig kenteken in.';
+        messageDiv.className = 'error';
+        return;
+      }
+
+      try {
+        messageDiv.textContent = 'Gegevens worden opgehaald...';
+        messageDiv.className = 'info';
+
+        // RDW Open Data endpoints
+        const basicUrl = 'https://opendata.rdw.nl/resource/m9d7-ebf2.json?kenteken='
+          + encodeURIComponent(plate);
+        const fuelUrl = 'https://opendata.rdw.nl/resource/8ys7-d773.json?kenteken='
+          + encodeURIComponent(plate);
+
+        const [basicRes, fuelRes] = await Promise.all([
+          fetch(basicUrl),
+          fetch(fuelUrl)
+        ]);
+
+        if (!basicRes.ok || !fuelRes.ok) {
+          throw new Error('RDW API gaf een foutmelding.');
+        }
+
+        const [basicData, fuelData] = await Promise.all([
+          basicRes.json(),
+          fuelRes.json()
+        ]);
+
+        if (!Array.isArray(basicData) || basicData.length === 0) {
+          messageDiv.textContent = 'Geen voertuig gevonden voor kenteken: ' + plate;
+          messageDiv.className = 'error';
+          return;
+        }
+
+        messageDiv.textContent = 'Resultaten voor kenteken: ' + plate;
+        messageDiv.className = 'info';
+
+        // Basisgegevens (één record per voertuig)
+        renderSection('Basisgegevens voertuig', basicData[0]);
+
+        // Brandstofgegevens (kunnen meerdere regels zijn bij b.v. hybride)
+        if (Array.isArray(fuelData) && fuelData.length > 0) {
+          fuelData.forEach((row, index) => {
+            const title =
+              'Brandstofgegevens' + (fuelData.length > 1 ? ' #' + (index + 1) : '');
+            renderSection(title, row);
+          });
+        } else {
+          const p = document.createElement('p');
+          p.textContent = 'Geen brandstofgegevens gevonden voor dit kenteken in deze dataset.';
+          p.className = 'muted';
+          resultsDiv.appendChild(p);
+        }
+
+      } catch (error) {
+        console.error(error);
+        messageDiv.textContent =
+          'Er ging iets mis bij het ophalen van de gegevens. Probeer het later opnieuw.';
+        messageDiv.className = 'error';
+      }
+    });
+
+    function renderSection(title, dataObj) {
+      const section = document.createElement('section');
+
+      const h2 = document.createElement('h2');
+      h2.textContent = title;
+      section.appendChild(h2);
+
+      const table = document.createElement('table');
+      const tbody = document.createElement('tbody');
+
+      Object.entries(dataObj).forEach(([key, value]) => {
+        const tr = document.createElement('tr');
+        const th = document.createElement('th');
+        const td = document.createElement('td');
+
+        th.textContent = formatLabel(key);
+        td.textContent = value == null ? '' : String(value);
+
+        tr.appendChild(th);
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      section.appendChild(table);
+      resultsDiv.appendChild(section);
+    }
+
+    function formatLabel(key) {
+      // API keys als 'eerste_kleur' -> 'Eerste Kleur'
+      return key
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+  </script>
+</body>
+</html>
+
+<!-- PROJECT RDW-API FETCH ILKER CETO -->
