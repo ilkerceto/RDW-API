@@ -1,0 +1,22 @@
+# RDW Kenteken API
+
+Eenvoudige Node.js API die de **RDW Open Data** gebruikt om voertuig- en brandstofgegevens op te halen
+op basis van een kenteken.
+
+## Functionaliteit
+
+- Endpoint: `GET /api/kenteken/:kenteken`
+- Haalt data op uit:
+  - `Gekentekende_voertuigen` (basis voertuigdata)
+  - `Gekentekende_voertuigen_brandstof` (brandstofgegevens)
+- Maakt het kenteken-formaat schoon (streepjes/spaties verwijderd, uppercase)
+- Retourneert JSON zoals:
+
+```json
+{
+  "kenteken": "1ABC23",
+  "voertuig": { "...": "..." },
+  "brandstoffen": [
+    { "...": "..." }
+  ]
+}
