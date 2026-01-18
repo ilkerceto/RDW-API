@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <title>RDW-DATA FETCH API</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    /* Keep your existing styles (omitted here for brevity) */
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>RDW-Data Fetch API</h1>
+    <p class="muted">
+      Vul een Nederlands kenteken in (met of zonder streepjes/spaties). De gegevens worden opgehaald via de server-side API.
+    </p>
+
+    <form id="plate-form">
+      <label for="plate">Kenteken:</label>
+      <input id="plate" name="plate" type="text" placeholder="bijv. 1-ABC-23" autocomplete="off" required />
+      <button type="submit">Zoek voertuig</button>
+    </form>
+
+    <div id="message"></div>
+    <div id="results"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('plate-form');
+    const messageDiv = document.getElementById('message');
+    const resultsDiv = document.getElementById('results');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      messageDiv.textContent = '';
+      messageDiv.className = '';
+      resultsDiv.innerHTML = '';
+
+      const rawPlate = document.getElementById('plate').value;
+      const plate = rawPlate.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      if (!plate) {
+        messageDiv.textContent = 'Vul een geldig kenteken in.';
+        messageDiv.className = 'error';
+        return;
+      }
+
+      try {
+        messageDiv.textContent = 'Gegevens worden opgehaald...';
+        messageDiv.className = 'info';
+
+        // Roep jouw nieuwe API aan (vervang host/port indien nodig)
+        const url = `/api/vehicle?plate=${encodeURIComponent(plate)}`;
+        const res = await fetch(url);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Server gaf een fout');
+        }
+        const data = await res.json();
+
+        messageDiv.textContent = 'Resultaten voor kenteken: ' + plate;
+        messageDiv.className = 'info';
+
+        // Render basis en brandstof
+        renderSection('Basisgegevens voertuig', data.basic || {});
+        if (Array.isArray(data.fuel) && data.fuel.length > 0) {
+          data.fuel.forEach((row, i) => renderSection('Brandstofgegevens' + (data.fuel.length > 1 ? ' #' + (i+1) : ''), row));
+        } else {
+          const p = document.createElement('p');
+          p.textContent = 'Geen brandstofgegevens gevonden voor dit kenteken in deze dataset.';
+          p.className = 'muted';
+          resultsDiv.appendChild(p);
+        }
+
+      } catch (error) {
+        console.error(error);
+        messageDiv.textContent = 'Er ging iets mis bij het ophalen van de gegevens. Probeer het later opnieuw.';
+        messageDiv.className = 'error';
+      }
+    });
+
+    function renderSection(title, dataObj) {
+      const section = document.createElement('section');
+      const h2 = document.createElement('h2'); h2.textContent = title; section.appendChild(h2);
+      const table = document.createElement('table'); const tbody = document.createElement('tbody');
+      Object.entries(dataObj).forEach(([key, value]) => {
+        const tr = document.createElement('tr');
+        const th = document.createElement('th'); th.textContent = formatLabel(key);
+        const td = document.createElement('td'); td.textContent = value == null ? '' : String(value);
+        tr.appendChild(th); tr.appendChild(td); tbody.appendChild(tr);
+      });
+      table.appendChild(tbody); section.appendChild(table); resultsDiv.appendChild(section);
+    }
+
+    function formatLabel(key) {
+      return key.replace(/_/g,' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+    }
+  </script>
+</body>
+</html>
