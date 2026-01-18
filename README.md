@@ -31,3 +31,8 @@ op basis van een kenteken.
 - PORT=3000
 - RDW_APP_TOKEN=JOUW_RDW_APP_TOKEN_HIER
 
+## Server opstarten
+
+- Development: npm run dev
+- Production: npm start
+- **De API draait nu op http://localhost:3000**
