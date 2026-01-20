@@ -101,16 +101,6 @@ app.get("/api/kenteken/:kenteken", async (req, res) => {
     // 🔹 chassisnummer uit RDW dataset
     const chassisnummer = voertuig.voertuigidentificatienummer || null;
 
-    // 🔹 Specifieke velden die jij wilde
-    const carrosserietype =
-      carrosserieRow?.carrosserietype || null;
-
-    const type_carrosserie_europese_omschrijving =
-      carrosserieRow?.type_carrosserie_europese_omschrijving || null;
-
-    const carrosserie_voertuig_nummer_europese_omschrijving =
-      carrosserieSpecRow?.carrosserie_voertuig_nummer_europese_omschrijving || null;
-
     return res.json({
       kenteken: plate,
       chassisnummer,
