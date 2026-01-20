@@ -1,7 +1,7 @@
 // src/server.js
 const express = require("express");
-const fetch = require("node-fetch");
 const dotenv = require("dotenv");
+const { getRdwDataForPlate } = require("./rdwClient");
 
 // .env laden
 dotenv.config();
@@ -11,10 +11,6 @@ const PORT = process.env.PORT || 3000;
 
 // Optioneel: RDW / Socrata Application Token
 const RDW_APP_TOKEN = process.env.RDW_APP_TOKEN || null;
-
-// RDW endpoints
-const RDW_VEHICLE_URL = "https://opendata.rdw.nl/resource/m9d7-ebf2.json";
-const RDW_FUEL_URL = "https://opendata.rdw.nl/resource/8ys7-d773.json";
 
 // Helper: kenteken opschonen
 function normalizePlate(plate) {
@@ -55,14 +51,11 @@ app.get("/api/kenteken/:kenteken", async (req, res) => {
       headers["X-App-Token"] = RDW_APP_TOKEN;
     }
 
-    const vehicleUrl = `${RDW_VEHICLE_URL}?kenteken=${encodeURIComponent(plate)}`;
-    const fuelUrl = `${RDW_FUEL_URL}?kenteken=${encodeURIComponent(plate)}`;
+    // Alle RDW-calls via de client
+    const { vehRes, fuelRes, carrRes, carrSpecRes } =
+      await getRdwDataForPlate(plate, headers);
 
-    const [vehRes, fuelRes] = await Promise.all([
-      fetch(vehicleUrl, { headers }),
-      fetch(fuelUrl, { headers })
-    ]);
-
+    // Deze twee zijn “kritiek” voor je API
     if (!vehRes.ok) {
       return res.status(502).json({
         error: "RDW voertuigendpoint faalde",
@@ -77,9 +70,11 @@ app.get("/api/kenteken/:kenteken", async (req, res) => {
       });
     }
 
-    const [vehData, fuelData] = await Promise.all([
+    const [vehData, fuelData, carrData, carrSpecData] = await Promise.all([
       vehRes.json(),
-      fuelRes.json()
+      fuelRes.json(),
+      carrRes.ok ? carrRes.json() : Promise.resolve([]),
+      carrSpecRes.ok ? carrSpecRes.json() : Promise.resolve([])
     ]);
 
     const voertuig =
@@ -94,14 +89,38 @@ app.get("/api/kenteken/:kenteken", async (req, res) => {
       });
     }
 
-    // 🔹 Nieuw: chassisnummer uit RDW dataset
+    // Carrosserie-datasets (optioneel)
+    const carrosserieRow =
+      Array.isArray(carrData) && carrData.length > 0 ? carrData[0] : null;
+
+    const carrosserieSpecRow =
+      Array.isArray(carrSpecData) && carrSpecData.length > 0
+        ? carrSpecData[0]
+        : null;
+
+    // 🔹 chassisnummer uit RDW dataset
     const chassisnummer = voertuig.voertuigidentificatienummer || null;
+
+    // 🔹 Specifieke velden die jij wilde
+    const carrosserietype =
+      carrosserieRow?.carrosserietype || null;
+
+    const type_carrosserie_europese_omschrijving =
+      carrosserieRow?.type_carrosserie_europese_omschrijving || null;
+
+    const carrosserie_voertuig_nummer_europese_omschrijving =
+      carrosserieSpecRow?.carrosserie_voertuig_nummer_europese_omschrijving || null;
 
     return res.json({
       kenteken: plate,
-      chassisnummer,   // ⬅️ toegevoegd
+      chassisnummer,
       voertuig,
-      brandstoffen
+      brandstoffen,
+      carrosserie: {
+        carrosserietype,
+        type_carrosserie_europese_omschrijving,
+        carrosserie_voertuig_nummer_europese_omschrijving
+      }
     });
   } catch (err) {
     console.error("Interne fout:", err);
