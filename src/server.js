@@ -2,8 +2,6 @@
 const express = require("express");
 const fetch = require("node-fetch");
 const dotenv = require("dotenv");
-const API_BASE_URL = "https://rdw-api.vercel.app";
-
 
 // .env laden
 dotenv.config();
