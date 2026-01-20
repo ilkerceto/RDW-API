@@ -115,12 +115,7 @@ app.get("/api/kenteken/:kenteken", async (req, res) => {
       kenteken: plate,
       chassisnummer,
       voertuig,
-      brandstoffen,
-      carrosserie: {
-        carrosserietype,
-        type_carrosserie_europese_omschrijving,
-        carrosserie_voertuig_nummer_europese_omschrijving
-      }
+      brandstoffen
     });
   } catch (err) {
     console.error("Interne fout:", err);
